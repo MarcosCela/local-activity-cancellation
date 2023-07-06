@@ -9,16 +9,18 @@ import (
 )
 
 func MyActivity(c context.Context) error {
-	// Simulate that the worker is interrupted WHILE the activity is running
-	activity.GetLogger(c).Warn("oh no we got terminated")
+	// Simulate that the worker is interrupted WHILE the activity is running.
+	// Under normal conditions, the SIGINT/SIGTERM is handled and the Stop() is called
 	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
-	activity.GetLogger(c).Warn("the activity is still running tho...")
-	time.Sleep(5 * time.Second)
+
+	// Simulate a long-running activity here
 
 	select {
 	case <-c.Done():
+		activity.GetLogger(c).Error("The activity was cancelled")
 		return c.Err()
-	default:
+	case <-time.After(activityTimer):
+		activity.GetLogger(c).Error("The activity completed correctly")
 		return nil
 	}
 }

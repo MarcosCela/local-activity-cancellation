@@ -16,6 +16,12 @@ import (
 
 var log = zerolog.New(os.Stdout).Level(zerolog.DebugLevel).With().Timestamp().Logger()
 
+const (
+	workflowExecutionTimeout       = 10 * time.Second
+	activityScheduleToCloseTimeout = 8 * time.Second
+	activityTimer                  = 4 * time.Second
+)
+
 func main() {
 
 	// Start temporalite server
@@ -43,31 +49,34 @@ func main() {
 	// a worker running in the background and a WORKFLOW running in
 	// the background.
 
-	// Wait for the worker interrupt channel. A signal will be sent
-	// from the local activity
 	select {
-	case <-worker.InterruptCh():
-		// Handle the signal and gracefully stop the worker
+	case sig := <-worker.InterruptCh():
+		log.Warn().Msgf("Handling signal: %s", sig)
 		w.Stop()
-
 	}
 
 	// Worker has been stopped, print the status of the workflow
 	// After stopping, retrieve the workflow
-	wfRun := c.GetWorkflow(context.Background(), "Test", "")
-	// Describe it
-	describe, err := c.DescribeWorkflowExecution(context.Background(), wfRun.GetID(), wfRun.GetRunID())
-	if err != nil {
-		panic(err)
+	for {
+		wfRun := c.GetWorkflow(context.Background(), "Test", "")
+		// Describe it
+		describe, err := c.DescribeWorkflowExecution(context.Background(), wfRun.GetID(), wfRun.GetRunID())
+		if err != nil {
+			panic(err)
+		}
+		log.Warn().Msgf("The status for the workflow (wfId:%s,runId:%s) is: %s", describe.GetWorkflowExecutionInfo().GetExecution().GetWorkflowId(), describe.GetWorkflowExecutionInfo().GetExecution().GetRunId(), describe.GetWorkflowExecutionInfo().GetStatus())
+		if describe.GetWorkflowExecutionInfo().GetStatus().String() != "Running" {
+			return
+		}
 	}
-	log.Warn().Msgf("The status for the workflow (wfId:%s,runId:%s) is: %s", describe.GetWorkflowExecutionInfo().GetExecution().GetWorkflowId(), describe.GetWorkflowExecutionInfo().GetExecution().GetRunId(), describe.GetWorkflowExecutionInfo().GetStatus())
+
 }
 
 func scheduleWorkflow(c client.Client) error {
 	opts := client.StartWorkflowOptions{
 		ID:                       "Test",
 		TaskQueue:                "worker",
-		WorkflowExecutionTimeout: 10 * time.Second,
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
 	}
 	log.Warn().Msg("Starting the workflow")
 	_, err := c.ExecuteWorkflow(context.Background(), opts, "MyWorkflow")
@@ -76,10 +85,7 @@ func scheduleWorkflow(c client.Client) error {
 
 func generateWorker(c client.Client) worker.Worker {
 
-	tWorker := worker.New(c, "worker", worker.Options{
-		WorkerStopTimeout: 10 * time.Second,
-	},
-	)
+	tWorker := worker.New(c, "worker", worker.Options{})
 
 	tWorker.RegisterWorkflowWithOptions(MyWorkflow, workflow.RegisterOptions{
 		Name: "MyWorkflow",

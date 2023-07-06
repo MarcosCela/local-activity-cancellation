@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -11,7 +9,8 @@ func MyWorkflow(ctx workflow.Context) error {
 	// Sync local activity
 	workflow.GetLogger(ctx).Warn("Starting the local activity, wish me luck")
 	ctx = workflow.WithLocalActivityOptions(ctx, workflow.LocalActivityOptions{
-		ScheduleToCloseTimeout: 5 * time.Second,
+		// Higher timeout that the activity
+		ScheduleToCloseTimeout: activityScheduleToCloseTimeout,
 	})
 	return workflow.ExecuteLocalActivity(ctx, "MyActivity").Get(ctx, nil)
 }
