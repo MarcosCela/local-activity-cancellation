@@ -17,9 +17,12 @@ import (
 var log = zerolog.New(os.Stdout).Level(zerolog.DebugLevel).With().Timestamp().Logger()
 
 const (
-	workflowExecutionTimeout       = 10 * time.Second
-	activityScheduleToCloseTimeout = 8 * time.Second
-	activityTimer                  = 4 * time.Second
+	// Full exec timeout of the wf
+	workflowExecutionTimeout = activityScheduleToCloseTimeout * 4
+	// STCTimeout for the activity
+	activityScheduleToCloseTimeout = activityTimer * 2
+	// Max time for activity to complete with no error
+	activityTimer = 4 * time.Second
 )
 
 func main() {
@@ -38,6 +41,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	// Start worker
 	w := generateWorker(c)
 	if err := w.Start(); err != nil {
@@ -52,24 +56,23 @@ func main() {
 	select {
 	case sig := <-worker.InterruptCh():
 		log.Warn().Msgf("Handling signal: %s", sig)
+		time.Sleep(1 * time.Second)
 		w.Stop()
 	}
 
 	// Worker has been stopped, print the status of the workflow
 	// After stopping, retrieve the workflow
-	for {
-		wfRun := c.GetWorkflow(context.Background(), "Test", "")
-		// Describe it
-		describe, err := c.DescribeWorkflowExecution(context.Background(), wfRun.GetID(), wfRun.GetRunID())
-		if err != nil {
-			panic(err)
-		}
-		log.Warn().Msgf("The status for the workflow (wfId:%s,runId:%s) is: %s", describe.GetWorkflowExecutionInfo().GetExecution().GetWorkflowId(), describe.GetWorkflowExecutionInfo().GetExecution().GetRunId(), describe.GetWorkflowExecutionInfo().GetStatus())
-		if describe.GetWorkflowExecutionInfo().GetStatus().String() != "Running" {
-			return
-		}
-	}
+	wfRun := c.GetWorkflow(context.Background(), "Test", "")
 
+	if err := wfRun.Get(context.Background(), nil); err != nil {
+		panic(err)
+	}
+	// Describe it
+	describe, err := c.DescribeWorkflowExecution(context.Background(), wfRun.GetID(), wfRun.GetRunID())
+	if err != nil {
+		panic(err)
+	}
+	log.Warn().Msgf("The status for the workflow (wfId:%s,runId:%s) is: %s", describe.GetWorkflowExecutionInfo().GetExecution().GetWorkflowId(), describe.GetWorkflowExecutionInfo().GetExecution().GetRunId(), describe.GetWorkflowExecutionInfo().GetStatus())
 }
 
 func scheduleWorkflow(c client.Client) error {
