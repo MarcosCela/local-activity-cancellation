@@ -7,7 +7,7 @@ Execute the script, it will:
 - Create a worker that connects to that temporalite server.
 - Start a workflow, which starts a local activity. The local activity simulates a failure (SIGINT).
 
-Sometimes (race condition?) The worlflow shows up as "canceled" instead of timedout. Need
+Sometimes (race condition?) The workflow shows up as "canceled" instead of timedout. Need
 more investigation to get a consistent cancelled error.
 
 
