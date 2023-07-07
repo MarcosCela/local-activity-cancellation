@@ -13,8 +13,8 @@ func MyActivity(c context.Context) error {
 	// Under normal conditions, the SIGINT/SIGTERM is handled and the Stop() is called
 	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 
-	// Simulate a long-running activity here
-
+	// Simulate a long-running activity here that also
+	// respects context cancellation
 	select {
 	case <-c.Done():
 		activity.GetLogger(c).Error("The activity was cancelled")

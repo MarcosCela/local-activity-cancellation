@@ -4,7 +4,6 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-// YourSimpleWorkflowDefintiion is the most basic Workflow Defintion.
 func MyWorkflow(ctx workflow.Context) error {
 	// Sync local activity
 	workflow.GetLogger(ctx).Warn("Starting the local activity, wish me luck")

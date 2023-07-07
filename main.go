@@ -53,6 +53,7 @@ func main() {
 	// a worker running in the background and a WORKFLOW running in
 	// the background.
 
+	// Handle signal and gracefully terminate worker
 	select {
 	case sig := <-worker.InterruptCh():
 		log.Warn().Msgf("Handling signal: %s", sig)
